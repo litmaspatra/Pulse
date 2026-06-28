@@ -5,7 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.pulse.screens.ChatScreen
-import com.example.pulse.screens.PinScreen
+import com.example.pulse.screens.LoginScreen
 import com.example.pulse.screens.TrackerScreen
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -13,6 +13,7 @@ import com.example.pulse.viewmodel.PinViewModel
 import com.example.pulse.viewmodel.PinViewModelFactory
 import com.example.pulse.screens.CreatePinScreen
 import com.example.pulse.screens.ConfirmPinScreen
+
 
 @Composable
 fun AppNavigation() {
@@ -61,9 +62,7 @@ fun AppNavigation() {
 
         }
         composable(Routes.PIN) {
-
-            PinScreen(
-                title = "Welcome Back",
+            LoginScreen (
                 onPinEntered = { enteredPin ->
 
                     val success = pinViewModel.validatePin(enteredPin)

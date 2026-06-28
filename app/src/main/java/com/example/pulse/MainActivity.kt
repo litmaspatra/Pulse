@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.pulse.navigation.AppNavigation
-import com.example.pulse.screens.PinScreen
+import com.example.pulse.screens.LoginScreen
 import com.example.pulse.ui.theme.PulseTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,8 +36,7 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
 @Composable
 fun PinScreenPreview() {
     PulseTheme {
-        PinScreen(
-            title = "Welcome Back",
+        LoginScreen (
             onPinEntered = { false }
         )
     }

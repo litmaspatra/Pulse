@@ -22,7 +22,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 
 @Composable
-fun PinScreen(
+fun PinEntryScreen(
     title: String,
     onPinEntered: (String) -> Boolean
 ) {

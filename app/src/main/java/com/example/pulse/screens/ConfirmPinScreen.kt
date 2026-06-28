@@ -7,7 +7,7 @@ fun ConfirmPinScreen(
     onPinConfirmed: (String) -> Boolean
 ) {
 
-    PinScreen(
+    LoginScreen(
         title = "Confirm PIN",
         onPinEntered = onPinConfirmed
     )
