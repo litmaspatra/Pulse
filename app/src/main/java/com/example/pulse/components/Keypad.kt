@@ -18,9 +18,40 @@ fun Keypad(
     onBackspacePressed: () -> Unit
 ) {
     val rows = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9")
+
+        listOf(
+            Key(KeyType.NUMBER, label = "1"),
+            Key(KeyType.NUMBER, label = "2"),
+            Key(KeyType.NUMBER, label = "3")
+        ),
+
+        listOf(
+            Key(KeyType.NUMBER, label = "4"),
+            Key(KeyType.NUMBER, label = "5"),
+            Key(KeyType.NUMBER, label = "6")
+        ),
+
+        listOf(
+            Key(KeyType.NUMBER, label = "7"),
+            Key(KeyType.NUMBER, label = "8"),
+            Key(KeyType.NUMBER, label = "9")
+        ),
+
+        listOf(
+            Key(
+                type = KeyType.BACKSPACE,
+                icon = Icons.AutoMirrored.Filled.Backspace
+            ),
+
+            Key(
+                type = KeyType.NUMBER,
+                label = "0"
+            ),
+
+            Key(
+                type = KeyType.EMPTY
+            )
+        )
     )
     val buttonSpacing = 16.dp
     Column(
@@ -33,42 +64,44 @@ fun Keypad(
                 horizontalArrangement = Arrangement.spacedBy(buttonSpacing)
             ) {
 
-                row.forEach { number ->
+                row.forEach { key ->
 
-                    KeypadButton(
-                        label = number,
-                        onClick = {
-                            onNumberPressed(number)
+                    when (key.type) {
+
+                        KeyType.NUMBER -> {
+
+                            KeypadButton(
+                                key = key,
+                                onClick = {
+                                    onNumberPressed(key.label!!)
+                                }
+                            )
+
                         }
-                    )
+
+                        KeyType.BACKSPACE -> {
+
+                            KeypadButton(
+                                key = key,
+                                onClick = {
+                                    onBackspacePressed()
+                                }
+                            )
+
+                        }
+
+                        KeyType.EMPTY -> {
+
+                            Spacer(
+                                modifier = Modifier.size(72.dp)
+                            )
+
+                        }
+                    }
 
                 }
 
             }
-
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(buttonSpacing)
-        ) {
-
-            KeypadButton(
-                icon = Icons.AutoMirrored.Filled.Backspace,
-                onClick = {
-                    onBackspacePressed()
-                }
-            )
-
-            KeypadButton(
-                label = "0",
-                onClick = {
-                    onNumberPressed("0")
-                }
-            )
-
-            Spacer(
-                modifier = Modifier.size(72.dp)
-            )
 
         }
 

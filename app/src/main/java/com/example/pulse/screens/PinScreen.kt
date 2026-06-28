@@ -18,11 +18,15 @@ import com.example.pulse.components.Keypad
 import com.example.pulse.components.PinIndicator
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 
 @Composable
 fun PinScreen(
     onPinEntered: (String) -> Boolean
 ) {
+    val haptic = LocalHapticFeedback.current
+
     var pin by remember {
         mutableStateOf("")
     }
@@ -78,7 +82,7 @@ fun PinScreen(
                         val success = onPinEntered(pin)
 
                         if (!success) {
-
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             shouldShake = true
 
                         }

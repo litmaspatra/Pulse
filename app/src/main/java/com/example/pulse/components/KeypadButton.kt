@@ -11,8 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun KeypadButton(
-    label: String? = null,
-    icon: ImageVector? = null,
+    key: Key,
     onClick: () -> Unit
 ) {
 
@@ -21,15 +20,15 @@ fun KeypadButton(
         modifier = Modifier.size(72.dp)
     ) {
         when {
-            icon != null -> {
+            key.icon != null -> {
                 Icon(
-                    imageVector = icon,
+                    imageVector = key.icon,
                     contentDescription = null
                 )
             }
 
-            label != null -> {
-                Text(label)
+            key.label != null -> {
+                Text(key.label)
             }
         }
     }
