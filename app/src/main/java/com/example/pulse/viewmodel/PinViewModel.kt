@@ -1,4 +1,4 @@
-package com.example.pulse.ViewModel
+package com.example.pulse.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

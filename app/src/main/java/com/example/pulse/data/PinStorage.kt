@@ -22,7 +22,7 @@ class PinStorage(
             preferences[PreferencesKeys.PIN] = pin
         }
     }
-    val pin: Flow<String?> =
+    val savedPinFlow: Flow<String?> =
         context.dataStore.data.map { preferences ->
             preferences[PreferencesKeys.PIN]
         }
