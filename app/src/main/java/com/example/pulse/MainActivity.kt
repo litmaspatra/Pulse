@@ -37,7 +37,8 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
 fun PinScreenPreview() {
     PulseTheme {
         PinScreen(
-            onPinEntered = {false}
+            title = "Welcome Back",
+            onPinEntered = { false }
         )
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 
 @Composable
 fun PinScreen(
+    title: String,
     onPinEntered: (String) -> Boolean
 ) {
     val haptic = LocalHapticFeedback.current
@@ -61,7 +62,7 @@ fun PinScreen(
         )
 
         Text(
-            text = "Welcome Back",
+            text = title,
             style = MaterialTheme.typography.headlineSmall
         )
 
@@ -102,6 +103,5 @@ fun PinScreen(
             }
 
         )
-                    }
-                }
-
+    }
+}

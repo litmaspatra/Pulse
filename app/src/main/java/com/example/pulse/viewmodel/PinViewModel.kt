@@ -15,6 +15,8 @@ class PinViewModel(
     private val _savedPin = MutableStateFlow<String?>(null)
     val savedPin: StateFlow<String?> = _savedPin.asStateFlow()
 
+    private var pendingPin: String? = null
+
     init {
         viewModelScope.launch {
             pinStorage.savedPinFlow.collect { pin ->
@@ -27,6 +29,26 @@ class PinViewModel(
         viewModelScope.launch {
             pinStorage.savePin(pin)
         }
+    }
+
+    fun startPinCreation(pin: String) {
+        pendingPin = pin
+    }
+
+    fun confirmPin(pin: String): Boolean {
+
+        val matches = pendingPin == pin
+
+        if (matches) {
+            savePin(pin)
+            pendingPin = null
+        }
+
+        return matches
+    }
+
+    fun clearPendingPin() {
+        pendingPin = null
     }
 
     fun validatePin(enteredPin: String): Boolean {

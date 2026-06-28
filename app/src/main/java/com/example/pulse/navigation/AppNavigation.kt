@@ -7,40 +7,72 @@ import androidx.navigation.compose.rememberNavController
 import com.example.pulse.screens.ChatScreen
 import com.example.pulse.screens.PinScreen
 import com.example.pulse.screens.TrackerScreen
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.pulse.viewmodel.PinViewModel
+import com.example.pulse.viewmodel.PinViewModelFactory
+import com.example.pulse.screens.CreatePinScreen
+import com.example.pulse.screens.ConfirmPinScreen
 
 @Composable
 fun AppNavigation() {
 
     val navController = rememberNavController()
+    val context = LocalContext.current
+
+    val pinViewModel: PinViewModel = viewModel(
+        factory = PinViewModelFactory(context)
+    )
 
     NavHost(
         navController = navController,
-        startDestination = Routes.PIN
+        startDestination = Routes.CREATE_PIN
     ) {
+        composable(Routes.CREATE_PIN) {
 
+            CreatePinScreen { pin ->
+
+                pinViewModel.startPinCreation(pin)
+
+                navController.navigate(Routes.CONFIRM_PIN)
+
+                true
+            }
+
+        }
+
+        composable(Routes.CONFIRM_PIN) {
+
+            ConfirmPinScreen { pin ->
+
+                val success = pinViewModel.confirmPin(pin)
+
+                if (success) {
+
+                    navController.popBackStack(
+                        Routes.PIN,
+                        inclusive = false
+                    )
+
+                }
+
+                success
+            }
+
+        }
         composable(Routes.PIN) {
 
             PinScreen(
+                title = "Welcome Back",
                 onPinEntered = { enteredPin ->
 
-                    when (enteredPin) {
+                    val success = pinViewModel.validatePin(enteredPin)
 
-                        "1234" -> {
-                            navController.navigate(Routes.CHAT)
-                            true
-                        }
-
-                        "0000" -> {
-                            navController.navigate(Routes.TRACKER)
-                            true
-                        }
-
-                        else -> {
-                            false
-                        }
-
+                    if (success) {
+                        navController.navigate(Routes.CHAT)
                     }
 
+                    success
                 }
             )
 
