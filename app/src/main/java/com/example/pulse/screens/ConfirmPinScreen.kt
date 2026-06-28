@@ -4,12 +4,10 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun ConfirmPinScreen(
-    onPinConfirmed: (String) -> Boolean
+    onPinEntered: (String) -> Boolean
 ) {
-
-    LoginScreen(
+    PinEntryScreen(
         title = "Confirm PIN",
-        onPinEntered = onPinConfirmed
+        onPinEntered = onPinEntered
     )
-
 }

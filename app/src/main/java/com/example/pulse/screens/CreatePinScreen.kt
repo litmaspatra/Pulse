@@ -4,12 +4,10 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun CreatePinScreen(
-    onPinCreated: (String) -> Boolean
+    onPinEntered: (String) -> Boolean
 ) {
-
-    PinScreen(
+    PinEntryScreen(
         title = "Create PIN",
-        onPinEntered = onPinCreated
+        onPinEntered = onPinEntered
     )
-
 }
