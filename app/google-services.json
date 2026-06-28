@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "13520266340",
+    "firebase_url": "https://pulse-e65c7-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "pulse-e65c7",
+    "storage_bucket": "pulse-e65c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:13520266340:android:d4737f4cba68c2fd92ab71",
+        "android_client_info": {
+          "package_name": "com.example.pulse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBY4us0gbXmx6IuWNBEQzUmoq_zmhAufKE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

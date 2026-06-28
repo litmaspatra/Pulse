@@ -20,12 +20,14 @@ class PinViewModel(
     init {
         viewModelScope.launch {
             pinStorage.savedPinFlow.collect { pin ->
-                _savedPin.value = pin
+                _savedPin.value = pin ?: ""
             }
         }
     }
 
     fun savePin(pin: String) {
+        // Update in-memory state immediately — don't wait for DataStore
+        _savedPin.value = pin
         viewModelScope.launch {
             pinStorage.savePin(pin)
         }
@@ -36,14 +38,11 @@ class PinViewModel(
     }
 
     fun confirmPin(pin: String): Boolean {
-
         val matches = pendingPin == pin
-
         if (matches) {
             savePin(pin)
             pendingPin = null
         }
-
         return matches
     }
 
