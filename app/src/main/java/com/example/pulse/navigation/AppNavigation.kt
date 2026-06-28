@@ -84,7 +84,12 @@ fun AppNavigation() {
         }
 
         composable(Routes.CHAT) {
-            ChatScreen()
+            ChatScreen(
+                onDisconnected = {
+                    // Stay on the chat route — ChatScreen itself will fall back
+                    // to showing PairingScreen since isPaired becomes false.
+                }
+            )
         }
 
         composable(Routes.TRACKER) {

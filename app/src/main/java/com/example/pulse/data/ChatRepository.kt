@@ -13,7 +13,9 @@ data class Message(
     val id: String = "",
     val text: String = "",
     val senderId: String = "",
-    val timestamp: Long = 0L
+    val timestamp: Long = 0L,
+    // Compressed JPEG, Base64-encoded. Null for plain text messages.
+    val imageBase64: String? = null
 )
 
 class ChatRepository {
@@ -24,23 +26,23 @@ class ChatRepository {
         return try {
             val snapshot = db.child("rooms").child(roomCode).get().await()
             snapshot.exists()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
-    suspend fun createRoom(roomCode: String, userId: String): Boolean {
+    suspend fun createRoom(roomCode: String, uid: String): Boolean {
         return try {
             db.child("rooms").child(roomCode)
                 .child("members").child("member1")
-                .setValue(userId).await()
+                .setValue(uid).await()
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
-    suspend fun joinRoom(roomCode: String, userId: String): Boolean {
+    suspend fun joinRoom(roomCode: String, uid: String): Boolean {
         return try {
             val snapshot = db.child("rooms").child(roomCode)
                 .child("members").get().await()
@@ -48,9 +50,9 @@ class ChatRepository {
             if (snapshot.childrenCount >= 2L) return false
             db.child("rooms").child(roomCode)
                 .child("members").child("member2")
-                .setValue(userId).await()
+                .setValue(uid).await()
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -64,7 +66,7 @@ class ChatRepository {
                 .child("messages").child(key)
                 .setValue(msg).await()
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -104,5 +106,21 @@ class ChatRepository {
 
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
+    }
+
+    /**
+     * Removes this device's membership from the room. Does NOT delete the
+     * room or its messages — if the same two people reconnect with the same
+     * code, history is still there. This only disconnects the current device.
+     */
+    suspend fun leaveRoom(roomCode: String, memberSlot: String): Boolean {
+        return try {
+            db.child("rooms").child(roomCode)
+                .child("members").child(memberSlot)
+                .removeValue().await()
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 }

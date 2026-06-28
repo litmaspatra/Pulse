@@ -16,8 +16,8 @@ class PinStorage(
 ) {
     private object Keys {
         val PIN = stringPreferencesKey("pin")
-        val USER_ID = stringPreferencesKey("user_id")
         val ROOM_CODE = stringPreferencesKey("room_code")
+        val MEMBER_SLOT = stringPreferencesKey("member_slot")
     }
 
     // PIN
@@ -27,17 +27,26 @@ class PinStorage(
 
     val savedPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.PIN] }
 
-    // User ID (stable device identity)
-    suspend fun saveUserId(id: String) {
-        context.dataStore.edit { it[Keys.USER_ID] = id }
-    }
-
-    val userIdFlow: Flow<String?> = context.dataStore.data.map { it[Keys.USER_ID] }
-
     // Room code (persist across app restarts)
     suspend fun saveRoomCode(code: String) {
         context.dataStore.edit { it[Keys.ROOM_CODE] = code }
     }
 
     val roomCodeFlow: Flow<String?> = context.dataStore.data.map { it[Keys.ROOM_CODE] }
+
+    // Which slot this device holds in the room: "member1" or "member2".
+    // Needed so we know which node to clear when disconnecting.
+    suspend fun saveMemberSlot(slot: String) {
+        context.dataStore.edit { it[Keys.MEMBER_SLOT] = slot }
+    }
+
+    val memberSlotFlow: Flow<String?> = context.dataStore.data.map { it[Keys.MEMBER_SLOT] }
+
+    // Clear room-related data on disconnect, keep the PIN
+    suspend fun clearRoomData() {
+        context.dataStore.edit {
+            it.remove(Keys.ROOM_CODE)
+            it.remove(Keys.MEMBER_SLOT)
+        }
+    }
 }

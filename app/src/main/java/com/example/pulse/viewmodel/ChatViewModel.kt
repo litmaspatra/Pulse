@@ -1,16 +1,18 @@
 package com.example.pulse.viewmodel
 
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.pulse.data.AuthRepository
 import com.example.pulse.data.ChatRepository
 import com.example.pulse.data.Message
 import com.example.pulse.data.PinStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 sealed class PairingState {
     object Idle : PairingState()
@@ -22,6 +24,7 @@ sealed class PairingState {
 
 class ChatViewModel(
     private val chatRepository: ChatRepository,
+    private val authRepository: AuthRepository,
     private val pinStorage: PinStorage
 ) : ViewModel() {
 
@@ -37,35 +40,45 @@ class ChatViewModel(
     private val _isPaired = MutableStateFlow(false)
     val isPaired: StateFlow<Boolean> = _isPaired.asStateFlow()
 
-    // Stable user ID for this device — stored in DataStore
     private val _userId = MutableStateFlow<String?>(null)
     val userId: StateFlow<String?> = _userId.asStateFlow()
 
+    private val _imageError = MutableStateFlow<String?>(null)
+    val imageError: StateFlow<String?> = _imageError.asStateFlow()
+
+    // Surfaces "this room/session is no longer valid" so the UI can bail
+    // back to pairing instead of sitting on a broken, silent listener.
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
+
+    private var memberSlot: String? = null
+    private var hasRestoredRoom = false
+
+    private val maxBase64Length = 700_000
+
     init {
         viewModelScope.launch {
-            // Load or generate a stable user ID
-            pinStorage.userIdFlow.collect { id ->
-                if (id == null) {
-                    val newId = UUID.randomUUID().toString().take(8)
-                    pinStorage.saveUserId(newId)
-                    _userId.value = newId
-                } else {
-                    _userId.value = id
-                }
+            val uid = authRepository.ensureSignedIn()
+            _userId.value = uid
+        }
+        viewModelScope.launch {
+            pinStorage.memberSlotFlow.collect { slot ->
+                memberSlot = slot
             }
         }
         viewModelScope.launch {
-            // Restore saved room code if any
             pinStorage.roomCodeFlow.collect { code ->
-                if (!code.isNullOrEmpty() && _roomCode.value == null) {
+                if (!code.isNullOrEmpty() && !hasRestoredRoom) {
+                    hasRestoredRoom = true
                     _roomCode.value = code
+                    _isPaired.value = true
+                    _pairingState.value = PairingState.Paired
                     listenToRoom(code)
                 }
             }
         }
     }
 
-    // Generate a new 6-digit room code and create the room
     fun createRoom() {
         val uid = _userId.value ?: return
         _pairingState.value = PairingState.Loading
@@ -76,7 +89,9 @@ class ChatViewModel(
             val success = chatRepository.createRoom(code, uid)
             if (success) {
                 _roomCode.value = code
+                memberSlot = "member1"
                 pinStorage.saveRoomCode(code)
+                pinStorage.saveMemberSlot("member1")
                 _pairingState.value = PairingState.WaitingForPartner
                 listenForPartner(code)
             } else {
@@ -85,7 +100,6 @@ class ChatViewModel(
         }
     }
 
-    // Join an existing room with entered code
     fun joinRoom(code: String) {
         val uid = _userId.value ?: return
         _pairingState.value = PairingState.Loading
@@ -99,7 +113,9 @@ class ChatViewModel(
             val success = chatRepository.joinRoom(code, uid)
             if (success) {
                 _roomCode.value = code
+                memberSlot = "member2"
                 pinStorage.saveRoomCode(code)
+                pinStorage.saveMemberSlot("member2")
                 _pairingState.value = PairingState.Paired
                 _isPaired.value = true
                 listenToRoom(code)
@@ -111,22 +127,49 @@ class ChatViewModel(
 
     private fun listenForPartner(code: String) {
         viewModelScope.launch {
-            chatRepository.isPairedFlow(code).collect { paired ->
-                if (paired) {
-                    _pairingState.value = PairingState.Paired
-                    _isPaired.value = true
-                    listenToRoom(code)
+            chatRepository.isPairedFlow(code)
+                .catch { handleSessionError() }
+                .collect { paired ->
+                    if (paired) {
+                        _pairingState.value = PairingState.Paired
+                        _isPaired.value = true
+                        listenToRoom(code)
+                    }
                 }
-            }
         }
     }
 
     private fun listenToRoom(code: String) {
         viewModelScope.launch {
-            chatRepository.messagesFlow(code).collect { msgs ->
-                _messages.value = msgs
-            }
+            chatRepository.messagesFlow(code)
+                .catch { handleSessionError() }
+                .collect { msgs ->
+                    _messages.value = msgs
+                }
         }
+    }
+
+    /**
+     * Called when a Firebase listener reports permission-denied (e.g. a room
+     * created under old/expired rules, or this device was removed as a
+     * member). Instead of crashing, we clear local state and drop back to
+     * the pairing screen so the person can create or join a fresh room.
+     */
+    private fun handleSessionError() {
+        memberSlot = null
+        hasRestoredRoom = false
+        _roomCode.value = null
+        _isPaired.value = false
+        _messages.value = emptyList()
+        _pairingState.value = PairingState.Idle
+        _sessionExpired.value = true
+        viewModelScope.launch {
+            pinStorage.clearRoomData()
+        }
+    }
+
+    fun acknowledgeSessionExpired() {
+        _sessionExpired.value = false
     }
 
     fun sendMessage(text: String) {
@@ -145,8 +188,56 @@ class ChatViewModel(
         }
     }
 
+    fun sendImage(imageBytes: ByteArray) {
+        val code = _roomCode.value ?: return
+        val uid = _userId.value ?: return
+
+        val encoded = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
+
+        if (encoded.length > maxBase64Length) {
+            _imageError.value = "That photo is too large even after compression. Try a different one."
+            return
+        }
+
+        val message = Message(
+            text = "",
+            senderId = uid,
+            timestamp = System.currentTimeMillis(),
+            imageBase64 = encoded
+        )
+
+        viewModelScope.launch {
+            val success = chatRepository.sendMessage(code, message)
+            if (!success) {
+                _imageError.value = "Couldn't send the photo. Check your connection and try again."
+            }
+        }
+    }
+
+    fun clearImageError() {
+        _imageError.value = null
+    }
+
     fun resetPairingError() {
         _pairingState.value = PairingState.Idle
+    }
+
+    fun disconnect() {
+        val code = _roomCode.value
+        val slot = memberSlot
+
+        viewModelScope.launch {
+            if (code != null && slot != null) {
+                chatRepository.leaveRoom(code, slot)
+            }
+            pinStorage.clearRoomData()
+            memberSlot = null
+            hasRestoredRoom = false
+            _roomCode.value = null
+            _isPaired.value = false
+            _messages.value = emptyList()
+            _pairingState.value = PairingState.Idle
+        }
     }
 }
 
@@ -155,6 +246,6 @@ class ChatViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return ChatViewModel(ChatRepository(), pinStorage) as T
+        return ChatViewModel(ChatRepository(), AuthRepository(), pinStorage) as T
     }
 }
