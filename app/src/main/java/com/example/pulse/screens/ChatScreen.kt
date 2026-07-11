@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,13 +53,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pulse.data.Message
 import com.example.pulse.data.PinStorage
 import com.example.pulse.viewmodel.ChatViewModel
 import com.example.pulse.viewmodel.ChatViewModelFactory
+import kotlinx.coroutines.delay
 import java.io.ByteArrayOutputStream
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,7 +145,7 @@ private fun ChatMessagesContent(
 
     LaunchedEffect(imageError) {
         if (imageError != null) {
-            kotlinx.coroutines.delay(3000)
+            delay(3.seconds)
             onDismissImageError()
         }
     }
@@ -297,7 +299,7 @@ private fun uriToCompressedJpegBytes(
 
         val scale = minOf(1f, maxDimension.toFloat() / maxOf(original.width, original.height))
         val scaled = if (scale < 1f) {
-            Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true)
+            original.scale((original.width * scale).toInt(), (original.height * scale).toInt())
         } else original
 
         val outputStream = ByteArrayOutputStream()

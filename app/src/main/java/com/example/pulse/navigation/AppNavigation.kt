@@ -1,3 +1,14 @@
+@file:Suppress("NewApi")
+// The NewApi/Matcher#start(String) warning reported in this file comes from
+// androidx.navigation's inline route-matching helpers (it compiles route
+// templates like "journal_editor/{fileName}" into a regex with named groups).
+// Because those helpers are `inline`, their bytecode is inlined directly into
+// this file at the composable(...) call sites, so lint attributes the API 26
+// requirement to us even though Navigation Compose already guards it
+// internally and supports minSdk 21+. Suppressed at file level rather than
+// raising minSdk, since that would drop Android 7.0/7.1 (API 24-25) support
+// for no real runtime benefit.
+
 package com.example.pulse.navigation
 
 import androidx.compose.animation.core.tween
