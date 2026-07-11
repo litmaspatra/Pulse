@@ -15,17 +15,35 @@ class PinStorage(
     private val context: Context
 ) {
     private object Keys {
-        val PIN = stringPreferencesKey("pin")
+        val PRIMARY_PIN = stringPreferencesKey("primary_pin")
+        val SECOND_PIN = stringPreferencesKey("second_pin")
         val ROOM_CODE = stringPreferencesKey("room_code")
         val MEMBER_SLOT = stringPreferencesKey("member_slot")
     }
-
     // PIN
-    suspend fun savePin(pin: String) {
-        context.dataStore.edit { it[Keys.PIN] = pin }
+    // Primary PIN
+    suspend fun savePrimaryPin(pin: String) {
+        context.dataStore.edit {
+            it[Keys.PRIMARY_PIN] = pin
+        }
     }
 
-    val savedPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.PIN] }
+    val primaryPinFlow: Flow<String?> =
+        context.dataStore.data.map {
+            it[Keys.PRIMARY_PIN]
+        }
+
+    // Second PIN
+    suspend fun saveSecondPin(pin: String) {
+        context.dataStore.edit {
+            it[Keys.SECOND_PIN] = pin
+        }
+    }
+
+    val secondPinFlow: Flow<String?> =
+        context.dataStore.data.map {
+            it[Keys.SECOND_PIN]
+        }
 
     // Room code (persist across app restarts)
     suspend fun saveRoomCode(code: String) {

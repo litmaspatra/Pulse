@@ -12,24 +12,43 @@ class PinViewModel(
     private val pinStorage: PinStorage
 ) : ViewModel() {
 
-    private val _savedPin = MutableStateFlow<String?>(null)
-    val savedPin: StateFlow<String?> = _savedPin.asStateFlow()
+    private val _primaryPin = MutableStateFlow<String?>(null)
+    val primaryPin: StateFlow<String?> = _primaryPin.asStateFlow()
+
+    private val _secondPin = MutableStateFlow<String?>(null)
+    val secondPin: StateFlow<String?> = _secondPin.asStateFlow()
 
     private var pendingPin: String? = null
 
     init {
+
         viewModelScope.launch {
-            pinStorage.savedPinFlow.collect { pin ->
-                _savedPin.value = pin ?: ""
+            pinStorage.primaryPinFlow.collect { pin ->
+                _primaryPin.value = pin
             }
+        }
+
+        viewModelScope.launch {
+            pinStorage.secondPinFlow.collect { pin ->
+                _secondPin.value = pin
+            }
+        }
+
+    }
+
+    fun savePrimaryPin(pin: String) {
+        _primaryPin.value = pin
+
+        viewModelScope.launch {
+            pinStorage.savePrimaryPin(pin)
         }
     }
 
-    fun savePin(pin: String) {
-        // Update in-memory state immediately — don't wait for DataStore
-        _savedPin.value = pin
+    fun saveSecondPin(pin: String) {
+        _secondPin.value = pin
+
         viewModelScope.launch {
-            pinStorage.savePin(pin)
+            pinStorage.saveSecondPin(pin)
         }
     }
 
@@ -40,7 +59,7 @@ class PinViewModel(
     fun confirmPin(pin: String): Boolean {
         val matches = pendingPin == pin
         if (matches) {
-            savePin(pin)
+            savePrimaryPin(pin)
             pendingPin = null
         }
         return matches
@@ -50,11 +69,19 @@ class PinViewModel(
         pendingPin = null
     }
 
-    fun validatePin(enteredPin: String): Boolean {
-        return enteredPin == _savedPin.value
+    fun validatePin(enteredPin: String): PinType {
+
+        return when (enteredPin) {
+
+            _primaryPin.value -> PinType.PRIMARY
+
+            _secondPin.value -> PinType.SECOND
+
+            else -> PinType.INVALID
+        }
     }
 
     fun hasPin(): Boolean {
-        return !_savedPin.value.isNullOrEmpty()
+        return !_primaryPin.value.isNullOrEmpty()
     }
 }
