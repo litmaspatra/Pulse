@@ -2,7 +2,9 @@ package com.example.pulse.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pulse.components.Keypad
 import com.example.pulse.components.PinIndicator
@@ -24,7 +27,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun PinEntryScreen(
     title: String,
-    onPinEntered: (String) -> Boolean
+    onPinEntered: (String) -> Boolean,
+    footer: @Composable () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -50,36 +54,24 @@ fun PinEntryScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "🌱 Pulse",
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Text(text = "🌱 Pulse", fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        Text(text = title, style = MaterialTheme.typography.headlineSmall)
 
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        PinIndicator(
-            enteredDigits = pin.length,
-            shouldShake = shouldShake
-        )
+        PinIndicator(enteredDigits = pin.length, shouldShake = shouldShake)
 
         Keypad(
             onNumberPressed = { digit ->
                 if (pin.length < 4) {
                     pin += digit
-                    if (pin.length == 4) {
-                        pendingPin = pin
-                    }
+                    if (pin.length == 4) pendingPin = pin
                 }
             },
             onBackspacePressed = {
-                if (pin.isNotEmpty()) {
-                    pin = pin.dropLast(1)
-                }
+                if (pin.isNotEmpty()) pin = pin.dropLast(1)
             }
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        footer()
     }
 }

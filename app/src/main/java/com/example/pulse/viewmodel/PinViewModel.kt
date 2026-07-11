@@ -18,70 +18,69 @@ class PinViewModel(
     private val _secondPin = MutableStateFlow<String?>(null)
     val secondPin: StateFlow<String?> = _secondPin.asStateFlow()
 
-    private var pendingPin: String? = null
+    private val _securityQuestion = MutableStateFlow<String?>(null)
+    val securityQuestion: StateFlow<String?> = _securityQuestion.asStateFlow()
+
+    private var securityAnswer: String? = null
+
+    private var pendingPrimaryPin: String? = null
+    private var pendingSecondPin: String? = null
 
     init {
-
-        viewModelScope.launch {
-            pinStorage.primaryPinFlow.collect { pin ->
-                _primaryPin.value = pin
-            }
-        }
-
-        viewModelScope.launch {
-            pinStorage.secondPinFlow.collect { pin ->
-                _secondPin.value = pin
-            }
-        }
-
+        viewModelScope.launch { pinStorage.primaryPinFlow.collect { _primaryPin.value = it } }
+        viewModelScope.launch { pinStorage.secondPinFlow.collect { _secondPin.value = it } }
+        viewModelScope.launch { pinStorage.securityQuestionFlow.collect { _securityQuestion.value = it } }
+        viewModelScope.launch { pinStorage.securityAnswerFlow.collect { securityAnswer = it } }
     }
 
-    fun savePrimaryPin(pin: String) {
-        _primaryPin.value = pin
-
-        viewModelScope.launch {
-            pinStorage.savePrimaryPin(pin)
-        }
-    }
-
-    fun saveSecondPin(pin: String) {
-        _secondPin.value = pin
-
-        viewModelScope.launch {
-            pinStorage.saveSecondPin(pin)
-        }
-    }
-
-    fun startPinCreation(pin: String) {
-        pendingPin = pin
-    }
+    fun startPinCreation(pin: String) { pendingPrimaryPin = pin }
 
     fun confirmPin(pin: String): Boolean {
-        val matches = pendingPin == pin
+        val matches = pendingPrimaryPin == pin
         if (matches) {
-            savePrimaryPin(pin)
-            pendingPin = null
+            _primaryPin.value = pin
+            viewModelScope.launch { pinStorage.savePrimaryPin(pin) }
+            pendingPrimaryPin = null
         }
         return matches
     }
 
-    fun clearPendingPin() {
-        pendingPin = null
+    fun startSecondPinCreation(pin: String) { pendingSecondPin = pin }
+
+    fun confirmSecondPin(pin: String): Boolean {
+        val matches = pendingSecondPin == pin
+        if (matches) {
+            _secondPin.value = pin
+            viewModelScope.launch { pinStorage.saveSecondPin(pin) }
+            pendingSecondPin = null
+        }
+        return matches
     }
 
+    fun clearSecondPin() {
+        _secondPin.value = null
+        viewModelScope.launch { pinStorage.clearSecondPin() }
+    }
+
+    fun validateSecondPinEntry(pin: String): Boolean =
+        pin.isNotEmpty() && pin == _secondPin.value
+
+    fun saveSecurityQuestion(question: String, answer: String) {
+        _securityQuestion.value = question
+        securityAnswer = answer.lowercase().trim()
+        viewModelScope.launch { pinStorage.saveSecurityQuestion(question, answer) }
+    }
+
+    fun verifySecurityAnswer(answer: String): Boolean =
+        securityAnswer != null && answer.lowercase().trim() == securityAnswer
+
     fun validatePin(enteredPin: String): PinType {
-
         return when (enteredPin) {
-
             _primaryPin.value -> PinType.PRIMARY
-
             _secondPin.value -> PinType.SECOND
-
             else -> PinType.INVALID
         }
     }
 
-    fun hasPin(): Boolean {
-        return !_primaryPin.value.isNullOrEmpty()
-    }
+    fun hasPin(): Boolean = !_primaryPin.value.isNullOrEmpty()
 }

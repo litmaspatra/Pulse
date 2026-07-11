@@ -19,52 +19,59 @@ class PinStorage(
         val SECOND_PIN = stringPreferencesKey("second_pin")
         val ROOM_CODE = stringPreferencesKey("room_code")
         val MEMBER_SLOT = stringPreferencesKey("member_slot")
+        val ACCENT_COLOR = stringPreferencesKey("accent_color")
+        val FONT_OPTION = stringPreferencesKey("font_option")
+        val SECURITY_QUESTION = stringPreferencesKey("security_question")
+        val SECURITY_ANSWER = stringPreferencesKey("security_answer")
     }
-    // PIN
-    // Primary PIN
+
     suspend fun savePrimaryPin(pin: String) {
-        context.dataStore.edit {
-            it[Keys.PRIMARY_PIN] = pin
-        }
+        context.dataStore.edit { it[Keys.PRIMARY_PIN] = pin }
     }
+    val primaryPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.PRIMARY_PIN] }
 
-    val primaryPinFlow: Flow<String?> =
-        context.dataStore.data.map {
-            it[Keys.PRIMARY_PIN]
-        }
-
-    // Second PIN
     suspend fun saveSecondPin(pin: String) {
-        context.dataStore.edit {
-            it[Keys.SECOND_PIN] = pin
-        }
+        context.dataStore.edit { it[Keys.SECOND_PIN] = pin }
+    }
+    val secondPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECOND_PIN] }
+
+    suspend fun clearSecondPin() {
+        context.dataStore.edit { it.remove(Keys.SECOND_PIN) }
     }
 
-    val secondPinFlow: Flow<String?> =
-        context.dataStore.data.map {
-            it[Keys.SECOND_PIN]
-        }
-
-    // Room code (persist across app restarts)
     suspend fun saveRoomCode(code: String) {
         context.dataStore.edit { it[Keys.ROOM_CODE] = code }
     }
-
     val roomCodeFlow: Flow<String?> = context.dataStore.data.map { it[Keys.ROOM_CODE] }
 
-    // Which slot this device holds in the room: "member1" or "member2".
-    // Needed so we know which node to clear when disconnecting.
     suspend fun saveMemberSlot(slot: String) {
         context.dataStore.edit { it[Keys.MEMBER_SLOT] = slot }
     }
-
     val memberSlotFlow: Flow<String?> = context.dataStore.data.map { it[Keys.MEMBER_SLOT] }
 
-    // Clear room-related data on disconnect, keep the PIN
     suspend fun clearRoomData() {
         context.dataStore.edit {
             it.remove(Keys.ROOM_CODE)
             it.remove(Keys.MEMBER_SLOT)
         }
     }
+
+    suspend fun saveAccentColor(name: String) {
+        context.dataStore.edit { it[Keys.ACCENT_COLOR] = name }
+    }
+    val accentColorFlow: Flow<String?> = context.dataStore.data.map { it[Keys.ACCENT_COLOR] }
+
+    suspend fun saveFontOption(name: String) {
+        context.dataStore.edit { it[Keys.FONT_OPTION] = name }
+    }
+    val fontOptionFlow: Flow<String?> = context.dataStore.data.map { it[Keys.FONT_OPTION] }
+
+    suspend fun saveSecurityQuestion(question: String, answer: String) {
+        context.dataStore.edit {
+            it[Keys.SECURITY_QUESTION] = question
+            it[Keys.SECURITY_ANSWER] = answer.lowercase().trim()
+        }
+    }
+    val securityQuestionFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_QUESTION] }
+    val securityAnswerFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_ANSWER] }
 }
