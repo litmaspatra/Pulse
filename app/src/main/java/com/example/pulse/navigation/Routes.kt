@@ -1,3 +1,4 @@
+// FILE: app/src/main/java/com/example/pulse/navigation/Routes.kt
 package com.example.pulse.navigation
 
 object Routes {
@@ -17,6 +18,9 @@ object Routes {
     const val JOURNAL = "journal"
     const val JOURNAL_EDITOR = "journal_editor/{fileName}"
     const val SETTINGS = "settings"
+    const val CALENDAR = "calendar"
+    const val ARCHIVE = "archive"
+    const val TRASH = "trash"
 
     fun journalEditor(fileName: String) = "journal_editor/$fileName"
 }

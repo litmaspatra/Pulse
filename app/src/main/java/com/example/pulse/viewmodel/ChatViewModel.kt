@@ -1,3 +1,4 @@
+// FILE: app/src/main/java/com/example/pulse/viewmodel/ChatViewModel.kt
 package com.example.pulse.viewmodel
 
 import android.util.Base64
@@ -46,8 +47,6 @@ class ChatViewModel(
     private val _imageError = MutableStateFlow<String?>(null)
     val imageError: StateFlow<String?> = _imageError.asStateFlow()
 
-    // Surfaces "this room/session is no longer valid" so the UI can bail
-    // back to pairing instead of sitting on a broken, silent listener.
     private val _sessionExpired = MutableStateFlow(false)
     val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
 
@@ -71,9 +70,12 @@ class ChatViewModel(
                 if (!code.isNullOrEmpty() && !hasRestoredRoom) {
                     hasRestoredRoom = true
                     _roomCode.value = code
-                    _isPaired.value = true
-                    _pairingState.value = PairingState.Paired
-                    listenToRoom(code)
+                    // FIX: don't assume "a saved room code" means "paired".
+                    // A room saved from a previous attempt (creator only,
+                    // partner never joined) was previously treated as fully
+                    // paired and dropped you straight into chat. Now we
+                    // verify actual membership before showing chat.
+                    listenForPartner(code)
                 }
             }
         }
@@ -92,7 +94,6 @@ class ChatViewModel(
                 memberSlot = "member1"
                 pinStorage.saveRoomCode(code)
                 pinStorage.saveMemberSlot("member1")
-                _pairingState.value = PairingState.WaitingForPartner
                 listenForPartner(code)
             } else {
                 _pairingState.value = PairingState.Error("Failed to create room. Try again.")
@@ -125,7 +126,16 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Shows the waiting/code screen and only flips to Paired once the room
+     * genuinely has 2 members — whether that's freshly (just created a room)
+     * or on restore (app relaunched into an existing, possibly-unfinished
+     * room). This is the fix for "create room skips straight to a mystery chat."
+     */
     private fun listenForPartner(code: String) {
+        if (_pairingState.value !is PairingState.Paired) {
+            _pairingState.value = PairingState.WaitingForPartner
+        }
         viewModelScope.launch {
             chatRepository.isPairedFlow(code)
                 .catch { handleSessionError() }
@@ -134,6 +144,8 @@ class ChatViewModel(
                         _pairingState.value = PairingState.Paired
                         _isPaired.value = true
                         listenToRoom(code)
+                    } else if (!_isPaired.value) {
+                        _pairingState.value = PairingState.WaitingForPartner
                     }
                 }
         }
@@ -149,12 +161,6 @@ class ChatViewModel(
         }
     }
 
-    /**
-     * Called when a Firebase listener reports permission-denied (e.g. a room
-     * created under old/expired rules, or this device was removed as a
-     * member). Instead of crashing, we clear local state and drop back to
-     * the pairing screen so the person can create or join a fresh room.
-     */
     private fun handleSessionError() {
         memberSlot = null
         hasRestoredRoom = false

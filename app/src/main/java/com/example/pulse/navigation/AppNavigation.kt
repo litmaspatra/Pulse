@@ -1,3 +1,4 @@
+// FILE: app/src/main/java/com/example/pulse/navigation/AppNavigation.kt
 @file:Suppress("NewApi")
 // The NewApi/Matcher#start(String) warning reported in this file comes from
 // androidx.navigation's inline route-matching helpers (it compiles route
@@ -31,8 +32,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.pulse.data.JournalRepository
 import com.example.pulse.data.PinStorage
+import com.example.pulse.screens.ArchiveScreen
+import com.example.pulse.screens.CalendarScreen
 import com.example.pulse.screens.ChatScreen
 import com.example.pulse.screens.ChatSettingsScreen
 import com.example.pulse.screens.ConfirmPinScreen
@@ -45,6 +47,7 @@ import com.example.pulse.screens.SecurityQuestionSetupScreen
 import com.example.pulse.screens.SettingsScreen
 import com.example.pulse.screens.SplashScreen
 import com.example.pulse.screens.TrackerScreen
+import com.example.pulse.screens.TrashScreen
 import com.example.pulse.viewmodel.ChatViewModel
 import com.example.pulse.viewmodel.ChatViewModelFactory
 import com.example.pulse.viewmodel.PinType
@@ -64,16 +67,13 @@ fun AppNavigation() {
     val context = LocalContext.current
 
     val pinViewModel: PinViewModel = viewModel(factory = PinViewModelFactory(context))
-    val journalRepository = remember { JournalRepository(context) }
 
     fun openJournalLandingScreen() {
         navController.navigate(Routes.JOURNAL) { popUpTo(0) { inclusive = true } }
-        navController.navigate(Routes.journalEditor(journalRepository.todayFileName()))
     }
 
     var shouldRelock by remember { mutableStateOf(false) }
 
-    // Forces the PIN screen back up whenever the app is backgrounded (not just killed).
     DisposableEffect(Unit) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -191,7 +191,10 @@ fun AppNavigation() {
             JournalScreen(
                 onEntryClick = { fileName -> navController.navigate(Routes.journalEditor(fileName)) },
                 onNewEntry = { fileName -> navController.navigate(Routes.journalEditor(fileName)) },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) }
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
+                onOpenArchive = { navController.navigate(Routes.ARCHIVE) },
+                onOpenTrash = { navController.navigate(Routes.TRASH) }
             )
         }
 
@@ -204,6 +207,21 @@ fun AppNavigation() {
                 fileName = fileName,
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable(Routes.CALENDAR) {
+            CalendarScreen(
+                onBack = { navController.popBackStack() },
+                onEntryClick = { fileName -> navController.navigate(Routes.journalEditor(fileName)) }
+            )
+        }
+
+        composable(Routes.ARCHIVE) {
+            ArchiveScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.TRASH) {
+            TrashScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.SETTINGS) {
@@ -232,7 +250,10 @@ fun AppNavigation() {
         }
 
         composable(Routes.CHAT) {
-            ChatScreen(onOpenSettings = { navController.navigate(Routes.CHAT_SETTINGS) })
+            ChatScreen(
+                onOpenSettings = { navController.navigate(Routes.CHAT_SETTINGS) },
+                onBack = { navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } } }
+            )
         }
 
         composable(Routes.CHAT_SETTINGS) {

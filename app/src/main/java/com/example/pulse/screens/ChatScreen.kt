@@ -1,7 +1,9 @@
+// FILE: app/src/main/java/com/example/pulse/screens/ChatScreen.kt
 package com.example.pulse.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -24,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Settings
@@ -66,7 +69,7 @@ import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(onOpenSettings: () -> Unit) {
+fun ChatScreen(onOpenSettings: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val chatViewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(PinStorage(context))
@@ -79,10 +82,32 @@ fun ChatScreen(onOpenSettings: () -> Unit) {
     val userId by chatViewModel.userId.collectAsStateWithLifecycle()
     val imageError by chatViewModel.imageError.collectAsStateWithLifecycle()
 
+    // FIX: previously ChatScreen had no back handling at all. Since this
+    // route is navigated to with popUpTo(0), pressing system back with an
+    // empty backstack was exiting the whole app instead of leaving the
+    // screen — and because the room code was already saved locally, the
+    // next launch dropped straight back into that unfinished room. Now,
+    // while unpaired, back cancels the room properly and returns to the
+    // lock screen. Once paired, back exits the chat as expected (nothing
+    // stale is left behind since a paired room is a real, intended session).
+    if (!isPaired) {
+        BackHandler {
+            chatViewModel.disconnect()
+            onBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (isPaired) "Pulse" else "Pairing") },
+                navigationIcon = {
+                    if (!isPaired) {
+                        IconButton(onClick = { chatViewModel.disconnect(); onBack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Chat settings")

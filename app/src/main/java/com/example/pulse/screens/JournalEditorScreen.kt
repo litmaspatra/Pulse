@@ -1,20 +1,27 @@
+// FILE: app/src/main/java/com/example/pulse/screens/JournalEditorScreen.kt
 package com.example.pulse.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
@@ -25,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -62,23 +70,29 @@ fun JournalEditorScreen(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val canUndo by viewModel.canUndo.collectAsStateWithLifecycle()
     val canRedo by viewModel.canRedo.collectAsStateWithLifecycle()
+    val entryMeta by viewModel.entryMeta.collectAsStateWithLifecycle()
 
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val markdownTransform = remember { MarkdownVisualTransformation() }
+
+    val wordCount = remember(fieldValue.text) {
+        fieldValue.text.trim().let { if (it.isEmpty()) 0 else it.split(Regex("\\s+")).size }
+    }
+    val charCount = fieldValue.text.length
 
     BackHandler { viewModel.save { onBack() } }
 
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete entry?") },
-            text = { Text("This will permanently delete this journal entry.") },
+            title = { Text("Move to Trash?") },
+            text = { Text("This entry will be moved to Trash. You can restore it later.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
                     viewModel.delete { onBack() }
-                }) { Text("Delete") }
+                }) { Text("Move to Trash") }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
@@ -108,7 +122,15 @@ fun JournalEditorScreen(
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Delete entry") },
+                            text = { Text("Archive") },
+                            leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                viewModel.archive { onBack() }
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Move to Trash") },
                             onClick = {
                                 showMenu = false
                                 showDeleteConfirm = true
@@ -139,8 +161,29 @@ fun JournalEditorScreen(
                 )
             )
 
-            Divider()
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
+                Text(
+                    "$wordCount words · $charCount characters",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
+                Text(
+                    "Created ${entryMeta.createdLabel} · Edited ${entryMeta.editedLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 1
+                )
+            }
+
+            Divider(modifier = Modifier.padding(top = 8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp)
+            ) {
                 IconButton(onClick = { viewModel.undo() }, enabled = canUndo) {
                     Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
                 }
@@ -153,8 +196,17 @@ fun JournalEditorScreen(
                 IconButton(onClick = { viewModel.toggleItalic() }) {
                     Icon(Icons.Default.FormatItalic, contentDescription = "Italic")
                 }
+                IconButton(onClick = { viewModel.toggleUnderline() }) {
+                    Icon(Icons.Default.FormatUnderlined, contentDescription = "Underline")
+                }
                 IconButton(onClick = { viewModel.insertHeading() }) {
                     Icon(Icons.Default.Title, contentDescription = "Heading")
+                }
+                IconButton(onClick = { viewModel.insertBulletList() }) {
+                    Icon(Icons.Default.FormatListBulleted, contentDescription = "Bullet list")
+                }
+                IconButton(onClick = { viewModel.insertNumberedList() }) {
+                    Icon(Icons.Default.FormatListNumbered, contentDescription = "Numbered list")
                 }
                 IconButton(onClick = { viewModel.insertCheckbox() }) {
                     Icon(Icons.Default.CheckBox, contentDescription = "Checklist item")
