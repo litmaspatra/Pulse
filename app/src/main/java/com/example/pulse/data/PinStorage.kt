@@ -1,4 +1,3 @@
-// FILE: app/src/main/java/com/example/pulse/data/PinStorage.kt
 package com.example.pulse.data
 
 import android.content.Context
@@ -30,11 +29,13 @@ class PinStorage(
     suspend fun savePrimaryPin(pin: String) {
         context.dataStore.edit { it[Keys.PRIMARY_PIN] = pin }
     }
+
     val primaryPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.PRIMARY_PIN] }
 
     suspend fun saveSecondPin(pin: String) {
         context.dataStore.edit { it[Keys.SECOND_PIN] = pin }
     }
+
     val secondPinFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECOND_PIN] }
 
     suspend fun clearSecondPin() {
@@ -44,11 +45,13 @@ class PinStorage(
     suspend fun saveRoomCode(code: String) {
         context.dataStore.edit { it[Keys.ROOM_CODE] = code }
     }
+
     val roomCodeFlow: Flow<String?> = context.dataStore.data.map { it[Keys.ROOM_CODE] }
 
     suspend fun saveMemberSlot(slot: String) {
         context.dataStore.edit { it[Keys.MEMBER_SLOT] = slot }
     }
+
     val memberSlotFlow: Flow<String?> = context.dataStore.data.map { it[Keys.MEMBER_SLOT] }
 
     suspend fun clearRoomData() {
@@ -61,11 +64,13 @@ class PinStorage(
     suspend fun saveAccentColor(name: String) {
         context.dataStore.edit { it[Keys.ACCENT_COLOR] = name }
     }
+
     val accentColorFlow: Flow<String?> = context.dataStore.data.map { it[Keys.ACCENT_COLOR] }
 
     suspend fun saveFontOption(name: String) {
         context.dataStore.edit { it[Keys.FONT_OPTION] = name }
     }
+
     val fontOptionFlow: Flow<String?> = context.dataStore.data.map { it[Keys.FONT_OPTION] }
 
     suspend fun saveSecurityQuestion(question: String, answer: String) {
@@ -74,11 +79,19 @@ class PinStorage(
             it[Keys.SECURITY_ANSWER] = answer.lowercase().trim()
         }
     }
-    val securityQuestionFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_QUESTION] }
-    val securityAnswerFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_ANSWER] }
 
-    suspend fun saveLockTimeout(name: String) {
-        context.dataStore.edit { it[Keys.LOCK_TIMEOUT] = name }
+    val securityQuestionFlow: Flow<String?> =
+        context.dataStore.data.map { it[Keys.SECURITY_QUESTION] }
+
+    val securityAnswerFlow: Flow<String?> =
+        context.dataStore.data.map { it[Keys.SECURITY_ANSWER] }
+
+    suspend fun saveLockTimeout(timeout: LockTimeout) {
+        context.dataStore.edit { it[Keys.LOCK_TIMEOUT] = timeout.name }
     }
-    val lockTimeoutFlow: Flow<String?> = context.dataStore.data.map { it[Keys.LOCK_TIMEOUT] }
+
+    val lockTimeoutFlow: Flow<LockTimeout> =
+        context.dataStore.data.map { prefs ->
+            LockTimeout.fromName(prefs[Keys.LOCK_TIMEOUT])
+        }
 }
