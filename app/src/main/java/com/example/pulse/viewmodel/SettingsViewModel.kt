@@ -43,7 +43,11 @@ class SettingsViewModel(
     init {
         viewModelScope.launch { pinStorage.accentColorFlow.collect { _accentColorName.value = it } }
         viewModelScope.launch { pinStorage.fontOptionFlow.collect { _fontOptionName.value = it } }
-        viewModelScope.launch { pinStorage.lockTimeoutFlow.collect { _lockTimeoutName.value = it } }
+        // FIX: pinStorage.lockTimeoutFlow emits a LockTimeout enum, not a
+        // String. Assigning it directly into a MutableStateFlow<String?>
+        // was a type mismatch that broke the build. .name converts the
+        // enum to the same String key the rest of this screen expects.
+        viewModelScope.launch { pinStorage.lockTimeoutFlow.collect { _lockTimeoutName.value = it.name } }
     }
 
     fun setAccentColor(name: String) {
@@ -55,7 +59,7 @@ class SettingsViewModel(
     }
 
     fun setLockTimeout(name: String) {
-        viewModelScope.launch { pinStorage.saveLockTimeout(name) }
+        viewModelScope.launch { pinStorage.saveLockTimeout(com.example.pulse.data.LockTimeout.fromName(name)) }
     }
 
     fun exportJournal() {

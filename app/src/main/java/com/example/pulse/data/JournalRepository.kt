@@ -1,4 +1,3 @@
-// FILE: app/src/main/java/com/example/pulse/data/JournalRepository.kt
 package com.example.pulse.data
 
 import android.content.Context
@@ -18,14 +17,16 @@ class JournalRepository(context: Context) {
         }
     }
 
-    // Hidden subfolders keep archived/trashed .md files out of the active
-    // listing automatically (listFiles with isFile already excludes
-    // directories, but keeping them physically separate is clearer too).
     private val archiveDirectory: File by lazy {
         File(journalDirectory, ".archive").apply { if (!exists()) mkdirs() }
     }
     private val trashDirectory: File by lazy {
         File(journalDirectory, ".trash").apply { if (!exists()) mkdirs() }
+    }
+
+    /** Folder where journal-embedded images are stored (like Obsidian). */
+    val imagesDirectory: File by lazy {
+        File(journalDirectory, "images").apply { if (!exists()) mkdirs() }
     }
 
     private val newFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
@@ -34,12 +35,30 @@ class JournalRepository(context: Context) {
     private val displayFormatDateOnly = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US)
     private val timestampRegex = Regex("^(\\d{8}_\\d{6})")
 
+    private fun findFile(fileName: String): File? {
+        val active = File(journalDirectory, fileName)
+        if (active.exists()) return active
+        val archived = File(archiveDirectory, fileName)
+        if (archived.exists()) return archived
+        return null
+    }
+
     fun newEntryFileName(): String {
         val base = newFormat.format(Date())
         var candidate = "$base.md"
         var suffix = 1
         while (File(journalDirectory, candidate).exists()) {
             candidate = "${base}_${suffix++}.md"
+        }
+        return candidate
+    }
+
+    fun newImageFileName(extension: String = "jpg"): String {
+        val base = newFormat.format(Date())
+        var candidate = "$base.$extension"
+        var suffix = 1
+        while (File(imagesDirectory, candidate).exists()) {
+            candidate = "${base}_$suffix.$extension"
         }
         return candidate
     }
@@ -86,19 +105,34 @@ class JournalRepository(context: Context) {
     fun listTrashEntries(): List<JournalEntry> = listEntriesIn(trashDirectory)
 
     fun readEntry(fileName: String): String {
-        val file = File(journalDirectory, fileName)
-        return if (file.exists()) {
-            try { file.readText() } catch (_: Exception) { "" }
-        } else ""
+        val file = findFile(fileName) ?: return ""
+        return try { file.readText() } catch (_: Exception) { "" }
     }
 
     fun saveEntry(fileName: String, content: String): Boolean {
         return try {
-            File(journalDirectory, fileName).writeText(content)
+            val file = findFile(fileName) ?: File(journalDirectory, fileName)
+            file.writeText(content)
             true
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * Saves an image file into the journal's images folder.
+     * Returns the relative path to use in markdown: "images/filename.jpg"
+     */
+    fun saveImage(sourceFile: File): String? {
+        return try {
+            val destName = newImageFileName()
+            val dest = File(imagesDirectory, destName)
+            sourceFile.copyTo(dest, overwrite = true)
+            "images/$destName"
+        } catch (_: Exception) { null }
+    }
+
+    /** Returns the full File for a relative image path like "images/foo.jpg" */
+    fun resolveImage(relativePath: String): File {
+        return File(journalDirectory, relativePath)
     }
 
     private fun moveFile(from: File, to: File): Boolean {
@@ -108,13 +142,10 @@ class JournalRepository(context: Context) {
             if (from.renameTo(to)) {
                 true
             } else {
-                // renameTo can fail across filesystems/volumes — fall back to copy+delete.
                 to.writeBytes(from.readBytes())
                 from.delete()
             }
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
     }
 
     fun archiveEntry(fileName: String): Boolean =
@@ -123,7 +154,6 @@ class JournalRepository(context: Context) {
     fun unarchiveEntry(fileName: String): Boolean =
         moveFile(File(archiveDirectory, fileName), File(journalDirectory, fileName))
 
-    /** Soft delete: moves the file to Trash instead of deleting it outright. */
     fun moveToTrash(fileName: String): Boolean {
         val activeFile = File(journalDirectory, fileName)
         val source = if (activeFile.exists()) activeFile else File(archiveDirectory, fileName)
@@ -141,25 +171,19 @@ class JournalRepository(context: Context) {
         return try {
             trashDirectory.listFiles()?.forEach { it.delete() }
             true
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
     }
 
     fun entryMeta(fileName: String): EntryMeta {
         val created = parseFileName(fileName) ?: Date()
-        val file = File(journalDirectory, fileName)
-        val edited = if (file.exists()) Date(file.lastModified()) else created
+        val file = findFile(fileName)
+        val edited = if (file != null && file.exists()) Date(file.lastModified()) else created
         return EntryMeta(
             createdLabel = displayFormatWithTime.format(created),
             editedLabel = displayFormatWithTime.format(edited)
         )
     }
 
-    /**
-     * Active + archived entries grouped by day-of-month, for the Calendar
-     * view. Trashed entries are excluded.
-     */
     fun entriesForMonth(year: Int, month: Int): Map<Int, List<JournalEntry>> {
         val all = listEntries() + listArchivedEntries()
         val cal = Calendar.getInstance()

@@ -70,7 +70,15 @@ fun AppNavigation() {
 
     val pinViewModel: PinViewModel = viewModel(factory = PinViewModelFactory(context))
     val pinStorage = remember { PinStorage(context) }
-    val lockTimeoutName by pinStorage.lockTimeoutFlow.collectAsStateWithLifecycle(initialValue = null)
+
+    // FIX: pinStorage.lockTimeoutFlow already emits the resolved LockTimeout
+    // enum (PinStorage maps the raw stored String through
+    // LockTimeout.fromName internally). This was being collected and then
+    // passed straight into LockTimeout.fromName(String?) below — handing
+    // the enum to a function that only accepts its own raw String name.
+    // Collecting with the enum's own default as the initial value removes
+    // the need for that second lookup entirely.
+    val lockTimeout by pinStorage.lockTimeoutFlow.collectAsStateWithLifecycle(initialValue = LockTimeout.IMMEDIATE)
 
     fun openJournalLandingScreen() {
         navController.navigate(Routes.JOURNAL) { popUpTo(0) { inclusive = true } }
@@ -83,7 +91,7 @@ fun AppNavigation() {
     // (which is only ever created ONCE, since its key is Unit) still reads
     // the LATEST lock-timeout preference each time it fires, instead of
     // whatever value happened to exist the moment the effect was set up.
-    val currentLockTimeoutName by rememberUpdatedState(lockTimeoutName)
+    val currentLockTimeout by rememberUpdatedState(lockTimeout)
 
     DisposableEffect(Unit) {
         val observer = LifecycleEventObserver { _, event ->
@@ -97,9 +105,8 @@ fun AppNavigation() {
                 }
                 Lifecycle.Event.ON_START -> {
                     if (shouldRelock) {
-                        val timeout = LockTimeout.fromName(currentLockTimeoutName)
                         val elapsed = System.currentTimeMillis() - backgroundedAtMillis
-                        if (elapsed >= timeout.millis) {
+                        if (elapsed >= currentLockTimeout.millis) {
                             shouldRelock = false
                             navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } }
                         } else {

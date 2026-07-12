@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -34,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,7 +75,7 @@ fun SettingsScreen(
     val importResult by viewModel.importResult.collectAsStateWithLifecycle()
 
     var tapCount by remember { mutableIntStateOf(0) }
-    var lastTapTime by remember { mutableStateOf(0L) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(exportUri) {
         val uri = exportUri ?: return@LaunchedEffect
@@ -120,10 +123,15 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
+        // FIX: this Column had no scroll modifier before. The sections
+        // above already fill most screens. The version tap-trigger at the
+        // bottom was pushed off-screen with no way to scroll to it. It also
+        // fought a fillMaxSize() Box for space. That's why private chat was
+        // unreachable — the trigger existed, it just couldn't be tapped.
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
@@ -210,13 +218,17 @@ fun SettingsScreen(
                 }
             }
 
-            Box(modifier = Modifier.fillMaxWidth().fillMaxSize()) {
-                Text(
-                    text = "v1.0",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+            // FIX: no longer fillMaxSize() — it now just sits at the end of
+            // the scrollable content, always reachable, with a generous
+            // tap target (48dp min height) instead of relying on scroll
+            // math to land it on-screen.
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
+                        .defaultMinSize(minWidth = 120.dp, minHeight = 48.dp)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -228,9 +240,15 @@ fun SettingsScreen(
                                 tapCount = 0
                                 onSetupSecondPin()
                             }
-                        }
-                        .padding(16.dp)
-                )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "v1.0",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                    )
+                }
             }
         }
     }
