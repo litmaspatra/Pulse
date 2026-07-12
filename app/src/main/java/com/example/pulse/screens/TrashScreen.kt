@@ -1,9 +1,7 @@
-// FILE: app/src/main/java/com/example/pulse/screens/TrashScreen.kt
 package com.example.pulse.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,13 +12,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.RestoreFromTrash
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,7 +48,6 @@ fun TrashScreen(onBack: () -> Unit) {
     val trash by viewModel.trashEntries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isTrashLoading.collectAsStateWithLifecycle()
     var showEmptyConfirm by remember { mutableStateOf(false) }
-    var pendingPermanentDelete by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.loadTrash() }
 
@@ -57,30 +55,13 @@ fun TrashScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showEmptyConfirm = false },
             title = { Text("Empty Trash?") },
-            text = { Text("All entries in Trash will be permanently deleted. This cannot be undone.") },
+            text = { Text("This will permanently delete all trashed entries. This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = { showEmptyConfirm = false; viewModel.emptyTrash() }) { Text("Empty Trash") }
+                TextButton(onClick = { showEmptyConfirm = false; viewModel.emptyTrash() }) {
+                    Text("Empty Trash")
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showEmptyConfirm = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    pendingPermanentDelete?.let { fileName ->
-        AlertDialog(
-            onDismissRequest = { pendingPermanentDelete = null },
-            title = { Text("Delete forever?") },
-            text = { Text("This entry will be permanently deleted. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.permanentlyDelete(fileName)
-                    pendingPermanentDelete = null
-                }) { Text("Delete Forever") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingPermanentDelete = null }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showEmptyConfirm = false }) { Text("Cancel") } }
         )
     }
 
@@ -105,11 +86,9 @@ fun TrashScreen(onBack: () -> Unit) {
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 trash.isEmpty() -> {
-                    Text(
-                        "Trash is empty",
+                    Text("Trash is empty",
                         modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 else -> {
                     LazyColumn(
@@ -129,19 +108,16 @@ fun TrashScreen(onBack: () -> Unit) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(entry.dateLabel, style = MaterialTheme.typography.titleSmall)
                                         if (entry.preview.isNotBlank()) {
-                                            Text(
-                                                entry.preview,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                                maxLines = 1
-                                            )
+                                            Text(entry.preview, style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), maxLines = 1)
                                         }
                                     }
                                     IconButton(onClick = { viewModel.restoreFromTrash(entry.fileName) }) {
-                                        Icon(Icons.Default.RestoreFromTrash, contentDescription = "Restore")
+                                        Icon(Icons.Default.Restore, contentDescription = "Restore")
                                     }
-                                    IconButton(onClick = { pendingPermanentDelete = entry.fileName }) {
-                                        Icon(Icons.Default.DeleteForever, contentDescription = "Delete forever")
+                                    IconButton(onClick = { viewModel.permanentlyDelete(entry.fileName) }) {
+                                        Icon(Icons.Default.DeleteForever, contentDescription = "Delete permanently",
+                                            tint = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }

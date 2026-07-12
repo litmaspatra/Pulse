@@ -36,9 +36,6 @@ fun PulseTheme(
 ) {
     val onAccent = if (accentColor.luminance() > 0.5f) Color.Black else Color.White
 
-    // Only primary/secondary/tertiary were being overridden before — FAB and
-    // chips use *Container variants, which stayed the old default purple.
-    // That's why accent changes looked like they weren't applying.
     val colorScheme = if (darkTheme) {
         darkColorScheme(
             primary = accentColor.lighten(0.15f),
@@ -62,7 +59,10 @@ fun PulseTheme(
     }
 
     val typography = Typography(
-        bodyLarge = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
+        bodyLarge = TextStyle(
+            fontFamily = fontFamily, fontWeight = FontWeight.Normal,
+            fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp
+        ),
         bodyMedium = TextStyle(fontFamily = fontFamily, fontSize = 14.sp),
         bodySmall = TextStyle(fontFamily = fontFamily, fontSize = 12.sp),
         titleMedium = TextStyle(fontFamily = fontFamily, fontSize = 16.sp),

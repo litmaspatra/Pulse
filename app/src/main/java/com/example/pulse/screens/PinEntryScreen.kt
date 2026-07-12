@@ -5,73 +5,76 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.pulse.components.Keypad
 import com.example.pulse.components.PinIndicator
-import kotlinx.coroutines.delay
 
 @Composable
 fun PinEntryScreen(
     title: String,
-    onPinEntered: (String) -> Boolean,
-    footer: @Composable () -> Unit = {}
+    subtitle: String? = null,
+    onPinEntered: (String) -> Boolean
 ) {
-    val haptic = LocalHapticFeedback.current
-
+    var enteredDigits by remember { mutableIntStateOf(0) }
     var pin by remember { mutableStateOf("") }
     var shouldShake by remember { mutableStateOf(false) }
-    var pendingPin by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(pendingPin) {
-        val p = pendingPin ?: return@LaunchedEffect
-        val success = onPinEntered(p)
-        if (!success) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            shouldShake = true
-            delay(350)
-            pin = ""
-            shouldShake = false
-        }
-        pendingPin = null
-    }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "🌱 Pulse", fontSize = 36.sp, fontWeight = FontWeight.Bold)
-        Text(text = title, style = MaterialTheme.typography.headlineSmall)
-
-        PinIndicator(enteredDigits = pin.length, shouldShake = shouldShake)
-
+        Text(title, style = MaterialTheme.typography.titleLarge)
+        if (subtitle != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+        Spacer(modifier = Modifier.height(48.dp))
+        PinIndicator(enteredDigits = enteredDigits, shouldShake = shouldShake)
+        Spacer(modifier = Modifier.height(48.dp))
         Keypad(
             onNumberPressed = { digit ->
-                if (pin.length < 4) {
+                if (enteredDigits < 4) {
                     pin += digit
-                    if (pin.length == 4) pendingPin = pin
+                    enteredDigits++
+                    if (enteredDigits == 4) {
+                        val result = onPinEntered(pin)
+                        if (!result) {
+                            shouldShake = true
+                            pin = ""
+                            enteredDigits = 0
+                        }
+                    }
                 }
             },
             onBackspacePressed = {
-                if (pin.isNotEmpty()) pin = pin.dropLast(1)
+                if (enteredDigits > 0) {
+                    pin = pin.dropLast(1)
+                    enteredDigits--
+                }
             }
         )
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        footer()
+    if (shouldShake) {
+        // Reset shake after animation completes
+        androidx.compose.runtime.LaunchedEffect(shouldShake) {
+            kotlinx.coroutines.delay(400)
+            shouldShake = false
+        }
     }
 }
