@@ -20,6 +20,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -32,6 +33,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.pulse.data.LockTimeout
 import com.example.pulse.data.PinStorage
 import com.example.pulse.screens.ArchiveScreen
 import com.example.pulse.screens.CalendarScreen
@@ -57,7 +59,7 @@ import com.example.pulse.viewmodel.PinViewModelFactory
 private val lockExemptRoutes = setOf(
     Routes.SPLASH, Routes.PIN, Routes.CREATE_PIN, Routes.CONFIRM_PIN,
     Routes.FORGOT_PIN, Routes.RESET_PIN, Routes.RESET_CONFIRM_PIN,
-    Routes.SECURITY_QUESTION_SETUP
+    Routes.SECURITY_QUESTION_SETUP, Routes.CHANGE_PIN, Routes.CHANGE_PIN_CONFIRM
 )
 
 @Composable
@@ -67,12 +69,21 @@ fun AppNavigation() {
     val context = LocalContext.current
 
     val pinViewModel: PinViewModel = viewModel(factory = PinViewModelFactory(context))
+    val pinStorage = remember { PinStorage(context) }
+    val lockTimeoutName by pinStorage.lockTimeoutFlow.collectAsStateWithLifecycle(initialValue = null)
 
     fun openJournalLandingScreen() {
         navController.navigate(Routes.JOURNAL) { popUpTo(0) { inclusive = true } }
     }
 
     var shouldRelock by remember { mutableStateOf(false) }
+    var backgroundedAtMillis by remember { mutableStateOf(0L) }
+
+    // rememberUpdatedState so the DisposableEffect's lifecycle observer
+    // (which is only ever created ONCE, since its key is Unit) still reads
+    // the LATEST lock-timeout preference each time it fires, instead of
+    // whatever value happened to exist the moment the effect was set up.
+    val currentLockTimeoutName by rememberUpdatedState(lockTimeoutName)
 
     DisposableEffect(Unit) {
         val observer = LifecycleEventObserver { _, event ->
@@ -81,12 +92,19 @@ fun AppNavigation() {
                     val currentRoute = navController.currentBackStackEntry?.destination?.route
                     if (currentRoute != null && currentRoute !in lockExemptRoutes) {
                         shouldRelock = true
+                        backgroundedAtMillis = System.currentTimeMillis()
                     }
                 }
                 Lifecycle.Event.ON_START -> {
                     if (shouldRelock) {
-                        shouldRelock = false
-                        navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } }
+                        val timeout = LockTimeout.fromName(currentLockTimeoutName)
+                        val elapsed = System.currentTimeMillis() - backgroundedAtMillis
+                        if (elapsed >= timeout.millis) {
+                            shouldRelock = false
+                            navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } }
+                        } else {
+                            shouldRelock = false
+                        }
                     }
                 }
                 else -> {}
@@ -187,6 +205,24 @@ fun AppNavigation() {
             }
         }
 
+        composable(Routes.CHANGE_PIN) {
+            CreatePinScreen { pin ->
+                pinViewModel.startPinCreation(pin)
+                navController.navigate(Routes.CHANGE_PIN_CONFIRM)
+                true
+            }
+        }
+
+        composable(Routes.CHANGE_PIN_CONFIRM) {
+            ConfirmPinScreen { pin ->
+                val success = pinViewModel.confirmPin(pin)
+                if (success) {
+                    navController.popBackStack(Routes.SETTINGS, inclusive = false)
+                }
+                success
+            }
+        }
+
         composable(Routes.JOURNAL) {
             JournalScreen(
                 onEntryClick = { fileName -> navController.navigate(Routes.journalEditor(fileName)) },
@@ -227,7 +263,8 @@ fun AppNavigation() {
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
-                onSetupSecondPin = { navController.navigate(Routes.CREATE_SECOND_PIN) }
+                onSetupSecondPin = { navController.navigate(Routes.CREATE_SECOND_PIN) },
+                onChangePrimaryPin = { navController.navigate(Routes.CHANGE_PIN) }
             )
         }
 
@@ -264,8 +301,9 @@ fun AppNavigation() {
             ChatSettingsScreen(
                 onBack = { navController.popBackStack() },
                 onDisconnect = {
-                    chatViewModel.disconnect()
-                    navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } }
+                    chatViewModel.disconnect {
+                        navController.navigate(Routes.PIN) { popUpTo(0) { inclusive = true } }
+                    }
                 },
                 onVerifySecondPin = { code -> pinViewModel.validateSecondPinEntry(code) },
                 onDisableChat = {

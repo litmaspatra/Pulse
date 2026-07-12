@@ -82,19 +82,18 @@ fun ChatScreen(onOpenSettings: () -> Unit, onBack: () -> Unit) {
     val userId by chatViewModel.userId.collectAsStateWithLifecycle()
     val imageError by chatViewModel.imageError.collectAsStateWithLifecycle()
 
-    // FIX: previously ChatScreen had no back handling at all. Since this
-    // route is navigated to with popUpTo(0), pressing system back with an
-    // empty backstack was exiting the whole app instead of leaving the
-    // screen — and because the room code was already saved locally, the
-    // next launch dropped straight back into that unfinished room. Now,
-    // while unpaired, back cancels the room properly and returns to the
-    // lock screen. Once paired, back exits the chat as expected (nothing
-    // stale is left behind since a paired room is a real, intended session).
+    // FIX: guards against the same "double-tap fires navigation twice"
+    // problem as the journal editor, AND makes sure we only navigate away
+    // once disconnect()'s cleanup has actually finished (see ChatViewModel).
+    var isExiting by remember { mutableStateOf(false) }
+    fun cancelAndExit() {
+        if (isExiting) return
+        isExiting = true
+        chatViewModel.disconnect { onBack() }
+    }
+
     if (!isPaired) {
-        BackHandler {
-            chatViewModel.disconnect()
-            onBack()
-        }
+        BackHandler { cancelAndExit() }
     }
 
     Scaffold(
@@ -103,7 +102,7 @@ fun ChatScreen(onOpenSettings: () -> Unit, onBack: () -> Unit) {
                 title = { Text(if (isPaired) "Pulse" else "Pairing") },
                 navigationIcon = {
                     if (!isPaired) {
-                        IconButton(onClick = { chatViewModel.disconnect(); onBack() }) {
+                        IconButton(onClick = { cancelAndExit() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
                         }
                     }

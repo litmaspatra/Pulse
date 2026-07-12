@@ -70,11 +70,6 @@ class ChatViewModel(
                 if (!code.isNullOrEmpty() && !hasRestoredRoom) {
                     hasRestoredRoom = true
                     _roomCode.value = code
-                    // FIX: don't assume "a saved room code" means "paired".
-                    // A room saved from a previous attempt (creator only,
-                    // partner never joined) was previously treated as fully
-                    // paired and dropped you straight into chat. Now we
-                    // verify actual membership before showing chat.
                     listenForPartner(code)
                 }
             }
@@ -126,12 +121,6 @@ class ChatViewModel(
         }
     }
 
-    /**
-     * Shows the waiting/code screen and only flips to Paired once the room
-     * genuinely has 2 members — whether that's freshly (just created a room)
-     * or on restore (app relaunched into an existing, possibly-unfinished
-     * room). This is the fix for "create room skips straight to a mystery chat."
-     */
     private fun listenForPartner(code: String) {
         if (_pairingState.value !is PairingState.Paired) {
             _pairingState.value = PairingState.WaitingForPartner
@@ -228,7 +217,20 @@ class ChatViewModel(
         _pairingState.value = PairingState.Idle
     }
 
-    fun disconnect() {
+    /**
+     * FIX: previously this fired the Firebase leaveRoom() call and the local
+     * clearRoomData() write in the background, while the caller navigated
+     * away immediately afterward without waiting. Since navigating away
+     * (with popUpTo clearing this screen from the backstack) tears down
+     * this ViewModel's coroutine scope, that background cleanup was often
+     * getting CANCELLED mid-flight — clearRoomData() never finished, so the
+     * room code stayed saved locally, which is exactly why reopening the
+     * app kept dropping you back onto the same code screen.
+     *
+     * Now the caller passes onComplete and only navigates once cleanup has
+     * fully finished, while the ViewModel is still alive to do it.
+     */
+    fun disconnect(onComplete: () -> Unit = {}) {
         val code = _roomCode.value
         val slot = memberSlot
 
@@ -243,6 +245,7 @@ class ChatViewModel(
             _isPaired.value = false
             _messages.value = emptyList()
             _pairingState.value = PairingState.Idle
+            onComplete()
         }
     }
 }

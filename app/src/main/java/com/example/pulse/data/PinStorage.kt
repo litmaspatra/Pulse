@@ -1,3 +1,4 @@
+// FILE: app/src/main/java/com/example/pulse/data/PinStorage.kt
 package com.example.pulse.data
 
 import android.content.Context
@@ -23,6 +24,7 @@ class PinStorage(
         val FONT_OPTION = stringPreferencesKey("font_option")
         val SECURITY_QUESTION = stringPreferencesKey("security_question")
         val SECURITY_ANSWER = stringPreferencesKey("security_answer")
+        val LOCK_TIMEOUT = stringPreferencesKey("lock_timeout")
     }
 
     suspend fun savePrimaryPin(pin: String) {
@@ -74,4 +76,9 @@ class PinStorage(
     }
     val securityQuestionFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_QUESTION] }
     val securityAnswerFlow: Flow<String?> = context.dataStore.data.map { it[Keys.SECURITY_ANSWER] }
+
+    suspend fun saveLockTimeout(name: String) {
+        context.dataStore.edit { it[Keys.LOCK_TIMEOUT] = name }
+    }
+    val lockTimeoutFlow: Flow<String?> = context.dataStore.data.map { it[Keys.LOCK_TIMEOUT] }
 }

@@ -12,6 +12,8 @@ object Routes {
     const val RESET_CONFIRM_PIN = "reset_confirm_pin"
     const val CREATE_SECOND_PIN = "create_second_pin"
     const val CONFIRM_SECOND_PIN = "confirm_second_pin"
+    const val CHANGE_PIN = "change_pin"
+    const val CHANGE_PIN_CONFIRM = "change_pin_confirm"
     const val CHAT = "chat"
     const val CHAT_SETTINGS = "chat_settings"
     const val TRACKER = "tracker"

@@ -74,14 +74,46 @@ fun JournalEditorScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    val markdownTransform = remember { MarkdownVisualTransformation() }
+
+    // Rebuilt whenever text or cursor position changes, so the transform
+    // always knows where the cursor currently is (needed for the
+    // "show markers only while editing inside them" behavior).
+    val markdownTransform = remember(fieldValue) {
+        MarkdownVisualTransformation(fieldValue.selection.start)
+    }
 
     val wordCount = remember(fieldValue.text) {
         fieldValue.text.trim().let { if (it.isEmpty()) 0 else it.split(Regex("\\s+")).size }
     }
     val charCount = fieldValue.text.length
 
-    BackHandler { viewModel.save { onBack() } }
+    // FIX: pressing tick/back/archive/delete twice in quick succession
+    // (e.g. an impatient double-tap) could previously trigger save+navigate
+    // TWICE. The first pop correctly returned to the Journal list; the
+    // second pop then fired on an already-emptied backstack and exited the
+    // app instead. This flag makes only the first tap actually act — any
+    // further taps while the first is still in flight are ignored.
+    var isExiting by remember { mutableStateOf(false) }
+
+    fun saveAndExit() {
+        if (isExiting) return
+        isExiting = true
+        viewModel.save { onBack() }
+    }
+
+    fun archiveAndExit() {
+        if (isExiting) return
+        isExiting = true
+        viewModel.archive { onBack() }
+    }
+
+    fun deleteAndExit() {
+        if (isExiting) return
+        isExiting = true
+        viewModel.delete { onBack() }
+    }
+
+    BackHandler { saveAndExit() }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -91,7 +123,7 @@ fun JournalEditorScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
-                    viewModel.delete { onBack() }
+                    deleteAndExit()
                 }) { Text("Move to Trash") }
             },
             dismissButton = {
@@ -105,7 +137,7 @@ fun JournalEditorScreen(
             TopAppBar(
                 title = { Text(JournalRepository(context).formatFileNameToLabel(fileName)) },
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.save { onBack() } }) {
+                    IconButton(onClick = { saveAndExit() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -113,7 +145,7 @@ fun JournalEditorScreen(
                     if (isSaving) {
                         CircularProgressIndicator(modifier = Modifier.padding(12.dp).size(20.dp))
                     } else {
-                        IconButton(onClick = { viewModel.save { onBack() } }) {
+                        IconButton(onClick = { saveAndExit() }) {
                             Icon(Icons.Default.Check, contentDescription = "Save and close")
                         }
                     }
@@ -124,17 +156,11 @@ fun JournalEditorScreen(
                         DropdownMenuItem(
                             text = { Text("Archive") },
                             leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
-                            onClick = {
-                                showMenu = false
-                                viewModel.archive { onBack() }
-                            }
+                            onClick = { showMenu = false; archiveAndExit() }
                         )
                         DropdownMenuItem(
                             text = { Text("Move to Trash") },
-                            onClick = {
-                                showMenu = false
-                                showDeleteConfirm = true
-                            }
+                            onClick = { showMenu = false; showDeleteConfirm = true }
                         )
                     }
                 }
